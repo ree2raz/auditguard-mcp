@@ -59,7 +59,7 @@ async def main():
             {
                 "title": "Scenario 1: Analyst Query (PII Redaction)",
                 "role": "analyst",
-                "query": "Look up John Henderson's accounts and recent transactions",
+                "query": "Show me the top 3 customers by account balance",
             },
             {
                 "title": "Scenario 2: Intern RBAC Denial",

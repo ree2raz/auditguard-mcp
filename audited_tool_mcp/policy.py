@@ -234,6 +234,7 @@ def apply_policy(
     mutated = text
     mutations: list[Mutation] = []
     decisions: list[PolicyDecision] = []
+    review_detections: list[PIIDetection] = []
     has_review = False
     review_queue_id: str | None = None
 
@@ -319,22 +320,7 @@ def apply_policy(
         elif action == PolicyAction.REVIEW:
             # Leave text intact, flag for human review
             has_review = True
-            if review_queue_id is None:
-                review_queue_id = str(uuid.uuid4())
-
-            from audited_tool_mcp.models import Actor as ActorModel
-            review_entry = ReviewQueueEntry(
-                review_id=review_queue_id,
-                request_id=request_id,
-                actor=actor if isinstance(actor, ActorModel) else ActorModel(
-                    role=Role.ANALYST, user_id="unknown", session_id="unknown"
-                ),
-                tool_name=tool_name,
-                direction=direction,
-                detections=[det],
-                query_or_result_hash=original_hash,
-            )
-            _write_review_entry(review_entry)
+            review_detections.append(det)
 
             decisions.append(PolicyDecision(
                 category=det.category, action=action, reason=reason
@@ -347,6 +333,23 @@ def apply_policy(
                 direction=direction,
                 reason=f"BLOCK policy triggered: {reason}",
             )
+
+    # Write a single review queue entry if any detections triggered REVIEW
+    if has_review and review_detections:
+        review_queue_id = str(uuid.uuid4())
+        from audited_tool_mcp.models import Actor as ActorModel
+        review_entry = ReviewQueueEntry(
+            review_id=review_queue_id,
+            request_id=request_id,
+            actor=actor if isinstance(actor, ActorModel) else ActorModel(
+                role=Role.ANALYST, user_id="unknown", session_id="unknown"
+            ),
+            tool_name=tool_name,
+            direction=direction,
+            detections=review_detections[::-1],  # Reverse back to original order
+            query_or_result_hash=original_hash,
+        )
+        _write_review_entry(review_entry)
 
     return SanitizedInput(
         original_text_hash=original_hash,

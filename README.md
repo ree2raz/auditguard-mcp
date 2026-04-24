@@ -50,6 +50,11 @@ We use `openai/privacy-filter`, a 1.5B parameter bidirectional token classifier 
 - For fast local testing, setting `MOCK_PII=1` bypasses the model and uses a regex stub.
   - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See the benchmarks in `benchmarks/` for latency comparisons.*
 
+### What Privacy Filter gets wrong
+Because Privacy Filter was trained to aggressively protect personal data, it occasionally over-redacts public entities. For example, if a query returns a transaction counterparty named "Bennett Group", the model may tag it as three separate `private_person` spans.
+
+We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
+
 ## 5. RBAC and Policy Engine
 
 Policies are defined as strict Pydantic models, not loose YAML files. This ensures type safety and IDE autocomplete.
