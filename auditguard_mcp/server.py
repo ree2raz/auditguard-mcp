@@ -9,7 +9,7 @@ This is the compliance pipeline hub. Every tool call passes through:
   6. Outbound policy engine
   7. Audit logger
 
-Runs via stdio transport: `python -m audited_tool_mcp.server`
+Runs via stdio transport: `python -m auditguard_mcp.server`
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ import uuid
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-from audited_tool_mcp.audit import AuditLogger
-from audited_tool_mcp.models import (
+from auditguard_mcp.audit import AuditLogger
+from auditguard_mcp.models import (
     Actor,
     AuditRecord,
     Direction,
@@ -36,11 +36,11 @@ from audited_tool_mcp.models import (
     Role,
     sha256_hash,
 )
-from audited_tool_mcp.policy import apply_policy, get_policy
-from audited_tool_mcp.privacy import detect, get_model_version
-from audited_tool_mcp.rbac import check_access
-from audited_tool_mcp.tools.sql_query import execute_sql
-from audited_tool_mcp.tools.customer_api import lookup_customer, search_customers
+from auditguard_mcp.policy import apply_policy, get_policy
+from auditguard_mcp.privacy import detect, get_model_version
+from auditguard_mcp.rbac import check_access
+from auditguard_mcp.tools.sql_query import execute_sql
+from auditguard_mcp.tools.customer_api import lookup_customer, search_customers
 
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
 logging.basicConfig(
@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 mcp = FastMCP(
-    "audited-tool-mcp",
+    "auditguard-mcp",
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
     ),
@@ -564,7 +564,7 @@ async def demo_query(
 
 def main():
     """Run the MCP server via stdio transport."""
-    logger.info("Starting audited-tool-mcp server (stdio transport)...")
+    logger.info("Starting auditguard-mcp server (stdio transport)...")
     mcp.run(transport="stdio")
 
 

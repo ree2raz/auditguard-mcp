@@ -13,16 +13,16 @@ import os
 
 import pytest
 
-from audited_tool_mcp.audit import AuditLogger
-from audited_tool_mcp.models import (
+from auditguard_mcp.audit import AuditLogger
+from auditguard_mcp.models import (
     Actor,
     AuditRecord,
     RequestStatus,
     Role,
 )
-from audited_tool_mcp.privacy import use_mock_detector
-from audited_tool_mcp.server import _process_pipeline
-from audited_tool_mcp.tools.sql_query import execute_sql
+from auditguard_mcp.privacy import use_mock_detector
+from auditguard_mcp.server import _process_pipeline
+from auditguard_mcp.tools.sql_query import execute_sql
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,7 @@ def audit_path(tmp_path, monkeypatch):
     monkeypatch.setenv("VAULT_PATH", str(tmp_path / "vault.jsonl"))
     monkeypatch.setenv("REVIEW_QUEUE_PATH", str(tmp_path / "review_queue.jsonl"))
     # Re-create audit logger with new path
-    from audited_tool_mcp import server as server_module
+    from auditguard_mcp import server as server_module
     server_module.audit_logger = AuditLogger(path=path)
     return path
 

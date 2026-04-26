@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import re
 
-from audited_tool_mcp.models import (
+from auditguard_mcp.models import (
     Actor,
     RBACDenied,
     Role,

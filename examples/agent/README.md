@@ -1,6 +1,6 @@
 # LangGraph Reference Agent
 
-A ReAct-style agent that consumes the `audited-tool-mcp` server against a synthetic financial services dataset.
+A ReAct-style agent that consumes the `auditguard-mcp` server against a synthetic financial services dataset.
 
 ## Usage
 

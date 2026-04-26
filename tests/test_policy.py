@@ -1,4 +1,4 @@
-"""Tests for the policy engine (audited_tool_mcp.policy).
+"""Tests for the policy engine (auditguard_mcp.policy).
 
 Tests all 6 actions: ALLOW, REDACT, HASH, VAULT, REVIEW, BLOCK.
 Validates SanitizedInput structure, mutation records, and file outputs.
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from audited_tool_mcp.models import (
+from auditguard_mcp.models import (
     Actor,
     CategoryPolicy,
     Direction,
@@ -24,13 +24,13 @@ from audited_tool_mcp.models import (
     PolicyViolation,
     Role,
 )
-from audited_tool_mcp.policy import (
+from auditguard_mcp.policy import (
     PERMISSIVE_ANALYST,
     STRICT_FINANCIAL,
     apply_policy,
     get_policy,
 )
-from audited_tool_mcp import policy as policy_module
+from auditguard_mcp import policy as policy_module
 
 
 # ---------------------------------------------------------------------------

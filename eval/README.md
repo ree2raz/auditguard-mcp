@@ -1,6 +1,6 @@
 # Evaluation Harness
 
-Automated evaluation of the audited-tool-mcp compliance pipeline against a golden set of test cases.
+Automated evaluation of the auditguard-mcp compliance pipeline against a golden set of test cases.
 
 ## Usage
 

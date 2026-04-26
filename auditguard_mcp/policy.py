@@ -17,7 +17,7 @@ import os
 import uuid
 from pathlib import Path
 
-from audited_tool_mcp.models import (
+from auditguard_mcp.models import (
     CategoryPolicy,
     Direction,
     Mutation,
@@ -376,7 +376,7 @@ def apply_policy(
     # Write a single review queue entry if any detections triggered REVIEW
     if has_review and review_detections:
         review_queue_id = str(uuid.uuid4())
-        from audited_tool_mcp.models import Actor as ActorModel
+        from auditguard_mcp.models import Actor as ActorModel
         review_entry = ReviewQueueEntry(
             review_id=review_queue_id,
             request_id=request_id,

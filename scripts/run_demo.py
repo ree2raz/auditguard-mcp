@@ -1,4 +1,4 @@
-"""Run the audited-tool-mcp demo scenarios.
+"""Run the auditguard-mcp demo scenarios.
 
 Orchestrates the entire demo:
 1. Seeds the database
@@ -35,7 +35,7 @@ RESET = "\033[0m"
 
 async def main():
     print(f"{BLUE}======================================================================{RESET}")
-    print(f"{BLUE}  audited-tool-mcp: Compliance-Aware MCP Server Demo{RESET}")
+    print(f"{BLUE}  auditguard-mcp: Compliance-Aware MCP Server Demo{RESET}")
     print(f"{BLUE}======================================================================{RESET}\n")
 
     # 1. Seed the database
@@ -45,7 +45,7 @@ async def main():
     # 2. Start Customer API
     print(f"\n{YELLOW}[2/4] Starting Customer API...{RESET}")
     api_process = subprocess.Popen(
-        [sys.executable, "-m", "audited_tool_mcp.tools.customer_api"],
+        [sys.executable, "-m", "auditguard_mcp.tools.customer_api"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )

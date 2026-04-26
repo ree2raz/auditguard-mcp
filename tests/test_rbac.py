@@ -1,4 +1,4 @@
-"""Tests for RBAC module (audited_tool_mcp.rbac).
+"""Tests for RBAC module (auditguard_mcp.rbac).
 
 Tests the three-step fail-fast RBAC check:
   1a. Tool name O(1) membership check
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from audited_tool_mcp.models import Actor, RBACDenied, Role, RolePermissions
-from audited_tool_mcp.rbac import (
+from auditguard_mcp.models import Actor, RBACDenied, Role, RolePermissions
+from auditguard_mcp.rbac import (
     ROLE_PERMISSIONS,
     check_access,
     filter_columns,

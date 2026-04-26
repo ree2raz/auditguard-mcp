@@ -3,7 +3,7 @@
 This runs as a separate process (replicating real-world deployment).
 The tool function makes HTTP requests to the local API.
 
-Server: start with `python -m audited_tool_mcp.tools.customer_api`
+Server: start with `python -m auditguard_mcp.tools.customer_api`
 Tool:   call `lookup_customer()` or `search_customers()` from the MCP server
 """
 
@@ -20,7 +20,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
-from audited_tool_mcp.models import Role
+from auditguard_mcp.models import Role
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ async def lookup_customer(customer_id: int, role: Role | None = None) -> str:
             response.raise_for_status()
             data = response.json()
         except httpx.ConnectError:
-            return json.dumps({"error": "Customer API is not running. Start it with: python -m audited_tool_mcp.tools.customer_api"})
+            return json.dumps({"error": "Customer API is not running. Start it with: python -m auditguard_mcp.tools.customer_api"})
         except httpx.HTTPStatusError as e:
             return json.dumps({"error": f"API error: {e.response.status_code} - {e.response.text}"})
 
@@ -188,7 +188,7 @@ async def search_customers(
             response.raise_for_status()
             data = response.json()
         except httpx.ConnectError:
-            return json.dumps({"error": "Customer API is not running. Start it with: python -m audited_tool_mcp.tools.customer_api"})
+            return json.dumps({"error": "Customer API is not running. Start it with: python -m auditguard_mcp.tools.customer_api"})
         except httpx.HTTPStatusError as e:
             return json.dumps({"error": f"API error: {e.response.status_code} - {e.response.text}"})
 

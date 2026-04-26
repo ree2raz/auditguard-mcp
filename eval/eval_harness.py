@@ -19,16 +19,16 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from audited_tool_mcp.audit import AuditLogger
-from audited_tool_mcp.models import (
+from auditguard_mcp.audit import AuditLogger
+from auditguard_mcp.models import (
     Actor,
     AuditRecord,
     RequestStatus,
     Role,
 )
-from audited_tool_mcp.privacy import use_mock_detector
-from audited_tool_mcp.server import _process_pipeline
-from audited_tool_mcp.tools.sql_query import execute_sql
+from auditguard_mcp.privacy import use_mock_detector
+from auditguard_mcp.server import _process_pipeline
+from auditguard_mcp.tools.sql_query import execute_sql
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ async def run_eval(golden_set_path: str, use_mock: bool = True) -> EvalMetrics:
         os.environ["REVIEW_QUEUE_PATH"] = os.path.join(tmp_dir, "review_queue.jsonl")
 
         # Need to reinitialize the server's audit logger
-        from audited_tool_mcp import server as server_module
+        from auditguard_mcp import server as server_module
         server_module.audit_logger = AuditLogger(path=audit_path)
         audit_logger = server_module.audit_logger
 
@@ -238,7 +238,7 @@ async def run_eval(golden_set_path: str, use_mock: bool = True) -> EvalMetrics:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluation harness for audited-tool-mcp")
+    parser = argparse.ArgumentParser(description="Evaluation harness for auditguard-mcp")
     parser.add_argument(
         "--golden-set",
         default=str(Path(__file__).parent / "golden_set.jsonl"),

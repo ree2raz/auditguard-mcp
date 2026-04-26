@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from audited_tool_mcp.privacy import detect, use_mock_detector, _get_model
+from auditguard_mcp.privacy import detect, use_mock_detector, _get_model
 
 def run_benchmark(iterations: int = 100):
     print("=" * 60)

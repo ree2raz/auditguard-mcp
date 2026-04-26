@@ -1,4 +1,4 @@
-"""Tests for the audit logger (audited_tool_mcp.audit)."""
+"""Tests for the audit logger (auditguard_mcp.audit)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from audited_tool_mcp.audit import AuditLogger
-from audited_tool_mcp.models import (
+from auditguard_mcp.audit import AuditLogger
+from auditguard_mcp.models import (
     Actor,
     AuditRecord,
     PIICategory,

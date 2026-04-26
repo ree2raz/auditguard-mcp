@@ -1,5 +1,5 @@
 [project]
-name = "audited-tool-mcp"
+name = "auditguard-mcp"
 version = "0.1.0"
 description = "Compliance-aware MCP server: PII safety, RBAC, policy enforcement, and structured audit logging for LLM tool use"
 readme = "README.md"
@@ -44,7 +44,7 @@ dev = [
 ]
 
 [project.scripts]
-audited-tool-mcp = "audited_tool_mcp.server:main"
+auditguard-mcp = "auditguard_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,4 +1,4 @@
-"""Reference LangGraph agent that consumes the audited-tool-mcp server.
+"""Reference LangGraph agent that consumes the auditguard-mcp server.
 
 Connects via stdio transport, sends natural-language queries through
 the MCP compliance pipeline, and prints results with audit trail.
@@ -272,7 +272,7 @@ async def run_agent(role: str, query: str, user_id: str = "demo-user") -> None:
 
     from mcp.client.session import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
-    from audited_tool_mcp.audit import AuditLogger
+    from auditguard_mcp.audit import AuditLogger
 
     # Capture initial count of audit records
     logger = AuditLogger()
@@ -280,7 +280,7 @@ async def run_agent(role: str, query: str, user_id: str = "demo-user") -> None:
 
     server_params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "audited_tool_mcp.server"],
+        args=["-m", "auditguard_mcp.server"],
         env=os.environ.copy(),
     )
 
@@ -332,7 +332,7 @@ async def run_agent(role: str, query: str, user_id: str = "demo-user") -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Reference LangGraph agent for audited-tool-mcp")
+    parser = argparse.ArgumentParser(description="Reference LangGraph agent for auditguard-mcp")
     parser.add_argument(
         "--role",
         choices=["intern", "analyst", "compliance_officer"],

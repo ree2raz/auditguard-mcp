@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from audited_tool_mcp.models import (
+from auditguard_mcp.models import (
     PIICategory,
     PIIDetection,
 )

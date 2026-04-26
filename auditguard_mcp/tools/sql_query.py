@@ -14,8 +14,8 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from audited_tool_mcp.models import Role
-from audited_tool_mcp.rbac import filter_columns, _extract_tables
+from auditguard_mcp.models import Role
+from auditguard_mcp.rbac import filter_columns, _extract_tables
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-"""Generate synthetic financial services data for the audited-tool-mcp demo.
+"""Generate synthetic financial services data for the auditguard-mcp demo.
 
 Creates ~500 rows across 4 tables: customers, accounts, transactions, advisors.
 Uses Faker for realistic names/addresses/emails/phones.

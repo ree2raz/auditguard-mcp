@@ -1,4 +1,4 @@
-# audited-tool-mcp
+# auditguard-mcp
 
 A production-grade, compliance-aware Model Context Protocol (MCP) server that wraps LLM tool use with four primitives: PII safety, role-based access control (RBAC), configurable policy enforcement, and structured audit logging.
 
@@ -14,8 +14,8 @@ Prerequisites: Python 3.11+, `uv`
 # Set your OpenAI API key for the demo's LangGraph agent
 export OPENAI_API_KEY="sk-..."
 
-git clone https://github.com/ree2raz/audited-tool-mcp.git
-cd audited-tool-mcp
+git clone https://github.com/ree2raz/auditguard-mcp.git
+cd auditguard-mcp
 make install
 make seed
 MOCK_PII=1 make demo
@@ -79,7 +79,7 @@ Every tool call flows through a 7-step pipeline. Cheapest checks first, most exp
     LLM Response
 ```
 
-The server uses `FastMCP` with `stdio` transport. The core pipeline is in `audited_tool_mcp/server.py:process_request()`.
+The server uses `FastMCP` with `stdio` transport. The core pipeline is in `auditguard_mcp/server.py:process_request()`.
 
 ## 3. The Privacy Filter
 

@@ -1,4 +1,4 @@
-"""Tests for the Privacy Filter wrapper (audited_tool_mcp.privacy).
+"""Tests for the Privacy Filter wrapper (auditguard_mcp.privacy).
 
 Validates BIOES span decoding logic and the mock detector against
 5 hand-crafted examples. Real model tests are marked with a separate
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from audited_tool_mcp.models import PIICategory, PIIDetection
-from audited_tool_mcp.privacy import (
+from auditguard_mcp.models import PIICategory, PIIDetection
+from auditguard_mcp.privacy import (
     _decode_bioes_spans,
     _mock_detect,
     _parse_label,

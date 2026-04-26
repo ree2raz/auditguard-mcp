@@ -11,7 +11,7 @@ import logging
 import os
 from pathlib import Path
 
-from audited_tool_mcp.models import AuditRecord
+from auditguard_mcp.models import AuditRecord
 
 logger = logging.getLogger(__name__)
 
