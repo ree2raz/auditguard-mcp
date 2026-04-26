@@ -31,6 +31,8 @@ OpenAI released Privacy Filter on April 22, 2026. It's a 1.5B-parameter bidirect
 
 Because Privacy Filter was trained to aggressively protect personal data, it occasionally over-redacts public entities. For example, if a query returns a transaction counterparty named "Bennett Group", the model may tag it as three separate `private_person` spans.
 
+We also observe phone number false positives on numeric financial values. A balance like `496959.67` is flagged as `private_phone` because the digit sequence resembles a phone number pattern. The live demo ships a post-detection numeric guard that checks whether a phone detection falls on a purely numeric value inside a JSON number context — suppressing the redaction when the span is unlikely to be a real phone number. This guard is documented in `policy.py` under `_is_numeric_json_value()`.
+
 We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
 
 ## 1. What this is
