@@ -22,6 +22,7 @@ import time
 import uuid
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from audited_tool_mcp.audit import AuditLogger
 from audited_tool_mcp.models import (
@@ -53,7 +54,12 @@ logger = logging.getLogger(__name__)
 # MCP Server
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("audited-tool-mcp")
+mcp = FastMCP(
+    "audited-tool-mcp",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
+)
 audit_logger = AuditLogger()
 
 # Default tool timeout in seconds
@@ -378,6 +384,177 @@ async def customer_search(
         api_endpoint="/customers/search/",
         api_params={"name": name, "email": email} if name or email else None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Web Demo Tool — structured pipeline output for the frontend visualization
+# ---------------------------------------------------------------------------
+
+
+def _build_pipeline_view(audit: dict) -> dict:
+    """Build per-layer pipeline state from an audit record for the 7-box visualization.
+
+    Each layer returns {status: 'pass'|'fail'|'skipped'|'pending',
+                        label: str, detail: dict}
+    """
+    status = audit.get("status", "success")
+
+    # Determine which steps executed based on where the pipeline stopped
+    rbac_denied = status == "rbac_denied"
+    blocked = status == "blocked"
+    executed = status in ("success", "review_queued")
+    timed_out = status == "timeout"
+    errored = status == "error"
+
+    inbound_detections = audit.get("inbound_detections", [])
+    outbound_detections = audit.get("outbound_detections", [])
+    inbound_decisions = audit.get("policy_decisions_inbound", [])
+    outbound_decisions = audit.get("policy_decisions_outbound", [])
+
+    def _step_simple(passed: bool, label: str, detail: dict | None = None) -> dict:
+        return {"status": "pass" if passed else "fail", "label": label, "detail": detail or {}}
+
+    layers = []
+
+    # Layer 1: RBAC Gate
+    layers.append(_step_simple(
+        not rbac_denied,
+        "RBAC Gate",
+        {
+            "policy": audit.get("policy_version", ""),
+            "reason": "Access denied" if rbac_denied else "Access granted",
+        }
+    ))
+
+    # Layer 2: Inbound PII Scan
+    inbound_ran = not rbac_denied  # RBAC denial stops before PII scan
+    layers.append({
+        "status": "pass" if inbound_ran else "skipped",
+        "label": "Inbound PII Scan",
+        "detail": {
+            "detections": len(inbound_detections) if inbound_ran else 0,
+            "categories": list(set(d["category"] for d in inbound_detections)) if inbound_ran else [],
+        }
+    })
+
+    # Layer 3: Inbound Policy Engine
+    layers.append({
+        "status": "pass" if inbound_ran else "skipped",
+        "label": "Inbound Policy",
+        "detail": {
+            "decisions": [{"category": d["category"], "action": d["action"]} for d in inbound_decisions] if inbound_ran else [],
+        }
+    })
+
+    # Layer 4: Tool Execution
+    tool_ran = executed or timed_out
+    layers.append({
+        "status": "pass" if executed else ("fail" if timed_out or errored else "skipped"),
+        "label": "Tool Execution",
+        "detail": {
+            "latency_ms": round(audit.get("latency_ms", 0), 1),
+            "timed_out": timed_out,
+        }
+    })
+
+    # Layer 5: Outbound PII Scan
+    outbound_ran = tool_ran
+    layers.append({
+        "status": "pass" if outbound_ran else "skipped",
+        "label": "Outbound PII Scan",
+        "detail": {
+            "detections": len(outbound_detections) if outbound_ran else 0,
+            "categories": list(set(d["category"] for d in outbound_detections)) if outbound_ran else [],
+        }
+    })
+
+    # Layer 6: Outbound Policy Engine
+    layers.append({
+        "status": "pass" if outbound_ran else "skipped",
+        "label": "Outbound Policy",
+        "detail": {
+            "decisions": [{"category": d["category"], "action": d["action"]} for d in outbound_decisions] if outbound_ran else [],
+        }
+    })
+
+    # Layer 7: Audit Log
+    layers.append(_step_simple(
+        True,  # Audit always runs (it catches exceptions too)
+        "Audit Log",
+        {
+            "request_id": audit.get("request_id", ""),
+            "status": status,
+            "review_queued": audit.get("review_queue_id") is not None,
+        }
+    ))
+
+    return {"steps": layers, "overall_status": status}
+
+
+@mcp.tool()
+async def demo_query(
+    query: str,
+    role: str = "analyst",
+    sql: str = "",
+    user_id: str = "demo-user",
+) -> str:
+    """Run a compliance pipeline query and return structured pipeline data.
+
+    Designed for the web demo frontend. Returns JSON with per-layer pipeline
+    state for the 7-box visualization, the tool result, and full audit record.
+
+    Args:
+        query: Natural-language description (shown in the UI)
+        role: intern, analyst, or compliance_officer
+        sql: The actual SQL query to execute through the pipeline
+        user_id: User identifier
+    """
+    actor = Actor(
+        role=Role(role),
+        user_id=user_id,
+        session_id="web-demo",
+    )
+
+    # Track audit log position before the call
+    import os as _os
+    audit_path = _os.environ.get("AUDIT_LOG_PATH", "./audit.jsonl")
+    initial_lines = 0
+    if _os.path.exists(audit_path):
+        with open(audit_path) as f:
+            initial_lines = len(f.readlines())
+
+    sql_to_run = sql if sql else query
+
+    async def _execute(sanitized_query: str) -> str:
+        return execute_sql(sanitized_query, role=actor.role)
+
+    result = await _process_pipeline(
+        actor=actor,
+        tool_name="sql_query",
+        query=sql_to_run,
+        tool_executor=_execute,
+        sql_query=sql_to_run,
+    )
+
+    # Read the new audit record
+    audit_record = None
+    if _os.path.exists(audit_path):
+        with open(audit_path) as f:
+            all_lines = f.readlines()
+        new_lines = all_lines[initial_lines:]
+        if new_lines:
+            import json as _json
+            audit_record = _json.loads(new_lines[-1].strip())
+
+    pipeline_view = _build_pipeline_view(audit_record) if audit_record else {
+        "steps": [], "overall_status": "error"
+    }
+
+    return json.dumps({
+        "pipeline": pipeline_view,
+        "result": result,
+        "audit": audit_record,
+    })
 
 
 # ---------------------------------------------------------------------------
