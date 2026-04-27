@@ -227,14 +227,15 @@
 
   .qf textarea {
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 13px;
     background: transparent;
     border: none;
     color: var(--text);
     outline: none;
     resize: vertical;
     line-height: 1.7;
-    min-height: 40px;
+    min-height: 80px;
+    width: 100%;
   }
   .qf textarea::placeholder { color: var(--text-muted); }
 
@@ -402,7 +403,7 @@
   .results-section { margin-bottom: 48px; }
   .results-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 1px;
     background: var(--border);
     border: 1px solid var(--border);
@@ -435,7 +436,7 @@
 
   .r-panel-body {
     padding: 16px 20px;
-    max-height: 360px;
+    max-height: 480px;
     overflow-y: auto;
     font-family: var(--mono);
     font-size: 12px;
@@ -473,13 +474,18 @@
     overflow: hidden;
     transition: max-height 0.35s ease;
   }
-  .audit-content.open { max-height: 500px; overflow-y: auto; }
+  .audit-content.open { max-height: 600px; overflow-y: auto; }
   .audit-inner {
-    padding: 0 20px 16px;
+    padding: 16px 20px;
     font-family: var(--mono);
     font-size: 11px;
     line-height: 1.8;
     color: var(--text-dim);
+  }
+  .audit-inner pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   /* SQL table */
@@ -501,10 +507,6 @@
     font-size: 12px;
     color: var(--text-body);
     border-bottom: 1px solid var(--border);
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .tbl tr:last-child td { border-bottom: none; }
   .tbl .redacted {
@@ -515,6 +517,14 @@
     font-size: 11px;
   }
   .tbl .num { color: var(--accent); }
+
+  /* JSON syntax highlighting for audit logs */
+  .json-key { color: #79c0ff; }
+  .json-string { color: #a5d6ff; }
+  .json-number { color: #79c0ff; }
+  .json-boolean { color: #ff7b72; }
+  .json-null { color: #ff7b72; }
+  .json-brace { color: #8b949e; }
 
   /* Error */
   .err {
@@ -593,11 +603,11 @@
     </div>
     <div class="qf">
       <label>SQL</label>
-      <textarea id="sql" rows="3" placeholder="SELECT ..."></textarea>
+      <textarea id="sql" rows="6" placeholder="SELECT ..."></textarea>
     </div>
     <div class="qf full">
       <label>Description</label>
-      <textarea id="query" rows="1" placeholder="What this query does"></textarea>
+      <textarea id="query" rows="3" placeholder="What this query does"></textarea>
     </div>
   </div>
   <div class="run-area">
@@ -747,13 +757,32 @@ function renderTable(raw) {
   try {
     const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(data) || !data.length) return null;
+    
     const keys = Object.keys(data[0]);
-    let h = '<table class="tbl"><thead><tr>';
-    keys.forEach(k => { h += '<th>' + esc(k) + '</th>'; });
+    // Filter out internal IDs and low-value columns
+    const usefulKeys = keys.filter(k => !k.match(/^(id|customer_id|account_id|advisor_id)$/i));
+    
+    // Count redacted values
+    let redactCount = 0;
+    data.forEach(row => {
+      Object.values(row).forEach(v => {
+        if (String(v).startsWith('[private_') && String(v).endsWith(']')) redactCount++;
+      });
+    });
+    
+    // Summary header
+    let h = '<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);padding:12px 0 16px;border-bottom:1px solid var(--border);">';
+    h += data.length + ' row' + (data.length === 1 ? '' : 's') + ' returned';
+    if (redactCount > 0) h += ' &middot; ' + redactCount + ' redaction' + (redactCount === 1 ? '' : 's') + ' applied';
+    h += '</div>';
+    
+    // Table with useful columns only
+    h += '<table class="tbl"><thead><tr>';
+    usefulKeys.forEach(k => { h += '<th>' + esc(k) + '</th>'; });
     h += '</tr></thead><tbody>';
     data.forEach(row => {
       h += '<tr>';
-      keys.forEach(k => {
+      usefulKeys.forEach(k => {
         const v = String(row[k] ?? '');
         if (v.startsWith('[private_') && v.endsWith(']')) h += '<td><span class="redacted">' + esc(v) + '</span></td>';
         else if (/^-?\d+\.?\d*$/.test(v) && v.length > 3) h += '<td class="num">' + esc(v) + '</td>';
@@ -766,7 +795,20 @@ function renderTable(raw) {
   } catch { return null; }
 }
 
-function jstr(o) { try { return typeof o === 'string' ? JSON.stringify(JSON.parse(o), null, 2) : JSON.stringify(o, null, 2); } catch { return String(o); } }
+function jstr(o) {
+  try {
+    const json = typeof o === 'string' ? JSON.parse(o) : o;
+    return '<pre>' + syntaxHighlight(json) + '</pre>';
+  } catch { return esc(String(o)); }
+}
+
+function syntaxHighlight(json) {
+  if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
+  json = esc(json);
+  // Only highlight keys (quoted strings followed by colon), not values
+  // Match: "key": or "key" : with proper escaping
+  return json.replace(/(&quot;[a-zA-Z0-9_]+&quot;)(\s*:)/g, '<span class="json-key">$1</span>$2');
+}
 
 function toggleAudit() {
   document.getElementById('auditTrigger').classList.toggle('open');
@@ -801,7 +843,13 @@ async function run() {
     st.className = 'r-panel-status ' + (data.pipeline?.overall_status || '');
 
     if (data.latency_ms) { lat.textContent = data.latency_ms + 'ms'; lat.classList.add('show'); }
-    document.getElementById('auditBody').textContent = jstr(data.audit);
+    document.getElementById('auditBody').innerHTML = jstr(data.audit);
+    
+    // Auto-open audit log after successful execution
+    if (!document.getElementById('auditTrigger').classList.contains('open')) {
+      document.getElementById('auditTrigger').classList.add('open');
+      document.getElementById('auditWrap').classList.add('open');
+    }
 
   } catch (e) {
     body.innerHTML = '<div class="err">' + esc(e.message) + '</div>';

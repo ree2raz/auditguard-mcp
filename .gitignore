@@ -26,6 +26,9 @@ audit.jsonl
 vault.jsonl
 review_queue.jsonl
 
+# Models (downloaded model weights)
+models/
+
 # OS
 .DS_Store
 Thumbs.db

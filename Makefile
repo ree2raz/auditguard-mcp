@@ -1,4 +1,4 @@
-.PHONY: install seed demo test eval clean
+.PHONY: install seed demo test eval clean download-model
 
 install:
 	uv sync --all-extras
@@ -25,3 +25,7 @@ clean:
 	rm -f vault.jsonl
 	rm -f review_queue.jsonl
 	@echo "✓ Cleaned generated files"
+
+download-model:
+	uv run python scripts/download_model.py
+	@echo "✓ Model downloaded to models/"
