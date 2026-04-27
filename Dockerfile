@@ -1,6 +1,6 @@
 # HF Space Docker deployment for auditguard-mcp
 # Real MCP server + real Privacy Filter model (1.5B MoE, 50M active params)
-# Cache-optimized: split deps by install frequency
+# CPU-only: no CUDA deps (HF Spaces are CPU-only, saves ~400MB download)
 
 FROM python:3.12-slim
 
@@ -21,12 +21,13 @@ RUN uv pip install --system --no-cache \
     "faker>=25.0.0" \
     "sqlalchemy>=2.0.0"
 
-# === LAYER 2: Heavy ML dependencies (slow download, rarely change) ===
-# These take minutes to download but rarely update
+# === LAYER 2: CPU-only ML dependencies (no CUDA, ~100MB vs ~400MB) ===
+# HF Spaces are CPU-only, so we skip CUDA deps entirely
 RUN uv pip install --system --no-cache \
-    "transformers>=4.40.0" \
-    "torch>=2.0.0" \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    "torch" \
     "accelerate>=0.26.0" \
+    "transformers>=4.40.0" \
     "mcp[cli]>=1.0.0"
 
 # Copy application code (changes won't bust dep layers)
@@ -42,6 +43,10 @@ RUN mkdir -p data && python scripts/seed_data.py
 ENV PORT=7860
 ENV HF_HOME=/data/huggingface
 ENV TRANSFORMERS_CACHE=/data/huggingface
+# Optional: Path to local Privacy Filter model. If set and exists, loads from disk.
+# Otherwise downloads from HF Hub and caches to HF_HOME.
+# Example: docker run -v /path/to/model:/app/model -e PRIVACY_FILTER_LOCAL_PATH=/app/model ...
+ENV PRIVACY_FILTER_LOCAL_PATH=""
 
 EXPOSE 7860
 

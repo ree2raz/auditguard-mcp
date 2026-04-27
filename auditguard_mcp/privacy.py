@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Module-level singleton for the model
+# Module-level singleton for model
 # ---------------------------------------------------------------------------
 
 _model: PreTrainedModel | None = None
@@ -40,7 +40,11 @@ _tokenizer: PreTrainedTokenizerFast | None = None
 _lock = threading.Lock()
 _MODEL_NAME = "openai/privacy-filter"
 
-# Whether to use the mock (regex) detector instead of the real model.
+# Optional local path for model. If set and exists, loads from disk.
+# Falls back to HF download if not set or directory doesn't exist.
+_LOCAL_PATH = os.environ.get("PRIVACY_FILTER_LOCAL_PATH", "")
+
+# Whether to use mock (regex) detector instead of real model.
 # Set via MOCK_PII=1 env var or by calling use_mock_detector().
 _use_mock: bool = os.environ.get("MOCK_PII", "0") == "1"
 
@@ -56,7 +60,11 @@ def use_mock_detector(enabled: bool = True) -> None:
 
 
 def _get_model() -> tuple[PreTrainedModel, PreTrainedTokenizerFast]:
-    """Lazy-load the Privacy Filter model. Thread-safe with double-check locking."""
+    """Lazy-load Privacy Filter model. Thread-safe with double-check locking.
+    
+    Checks PRIVACY_FILTER_LOCAL_PATH env var first. If set and directory exists,
+    loads model from local disk. Otherwise downloads from HF Hub (cached to HF_HOME).
+    """
     global _model, _tokenizer
 
     if _model is not None and _tokenizer is not None:
@@ -68,21 +76,30 @@ def _get_model() -> tuple[PreTrainedModel, PreTrainedTokenizerFast]:
             return _model, _tokenizer
 
         from transformers import AutoModelForTokenClassification, AutoTokenizer
+        from pathlib import Path
 
         device = os.environ.get("PRIVACY_FILTER_DEVICE", "cpu")
-        logger.info("Loading Privacy Filter model '%s' on device '%s'...", _MODEL_NAME, device)
+        
+        # Determine model source: local path or HF Hub
+        model_source = _LOCAL_PATH if _LOCAL_PATH and Path(_LOCAL_PATH).exists() else _MODEL_NAME
+        
+        if _LOCAL_PATH and Path(_LOCAL_PATH).exists():
+            logger.info("Loading Privacy Filter from local path '%s' on device '%s'...", _LOCAL_PATH, device)
+        else:
+            logger.info("Loading Privacy Filter model '%s' on device '%s'...", _MODEL_NAME, device)
 
-        _tokenizer = AutoTokenizer.from_pretrained(_MODEL_NAME)
+        _tokenizer = AutoTokenizer.from_pretrained(model_source)
         _model = AutoModelForTokenClassification.from_pretrained(
-            _MODEL_NAME,
+            model_source,
             device_map=device,
         )
         _model.eval()
 
         logger.info(
-            "Privacy Filter loaded: %d labels, device=%s",
+            "Privacy Filter loaded: %d labels, device=%s, source=%s",
             _model.config.num_labels,
             device,
+            "local" if _LOCAL_PATH and Path(_LOCAL_PATH).exists() else "huggingface",
         )
         return _model, _tokenizer
 

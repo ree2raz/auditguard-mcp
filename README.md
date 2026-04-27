@@ -96,9 +96,36 @@ The server uses `FastMCP` with `stdio` transport. The core pipeline is in `audit
 We use `openai/privacy-filter` (model card: April 22, 2026), a 1.5B parameter bidirectional token classifier that supports 8 PII categories (e.g., `private_person`, `account_number`, `secret`). 
 
 - It runs **locally on CPU** by default. No data is sent to OpenAI APIs.
-- We implemented robust BIOES span decoding to accurately map token predictions back to character offsets in the original text.
-- For fast local testing, setting `MOCK_PII=1` bypasses the model and uses a regex stub.
-  - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See the benchmarks in `benchmarks/` for latency comparisons.*
+- We implemented robust BIOES span decoding to accurately map token predictions back to character offsets in original text.
+- For fast local testing, setting `MOCK_PII=1` bypasses model and uses a regex stub.
+  - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See benchmarks in `benchmarks/` for latency comparisons.*
+
+### Runtime Model Loading
+
+At runtime, the server checks the `PRIVACY_FILTER_LOCAL_PATH` environment variable:
+
+1. **If set and directory exists**: Loads model from local disk (no network call)
+2. **Otherwise**: Downloads model from Hugging Face Hub (cached to `HF_HOME` or `TRANSFORMERS_CACHE`)
+
+This enables air-gapped deployments or faster startups with pre-downloaded models.
+
+**Docker usage with local model:**
+```bash
+# Mount a local model directory
+docker run -p 7860:7860 \
+  -v /path/to/privacy-filter:/app/model \
+  -e PRIVACY_FILTER_LOCAL_PATH=/app/model \
+  auditguard-mcp:local
+```
+
+**Local development:**
+```bash
+# Point to a downloaded model
+export PRIVACY_FILTER_LOCAL_PATH=/path/to/privacy-filter
+uv run uvicorn web_app:app --port 7860
+```
+
+Startup logs indicate the source: `source=local` or `source=huggingface`.
 
 For known limitations, see [What Privacy Filter gets wrong](#what-privacy-filter-gets-wrong) above.
 
