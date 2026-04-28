@@ -16,7 +16,9 @@ Built on OpenAI's newly released Privacy Filter (1.5B params, April 2026), runni
 
 This project serves as a reference implementation for agentic systems in highly regulated industries.
 
-**Live demo:** [HuggingFace Space →](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
+**Live demo:** 
+
+[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Space-blue)](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
 
 ## Try it in 60 seconds
 
