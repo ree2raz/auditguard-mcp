@@ -22,11 +22,11 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 <em>Async backend</em> — analyst query with PII hashing, RBAC denial for intern, audit log:
 
-<video src="https://huggingface.co/buckets/ree2raz/demo_videos/resolve/async_demo.mp4" controls="controls" style="max-width:100%;"></video>
+https://github.com/user-attachments/assets/2d88b1e9-5256-4d0f-bd02-1987efe8fc97
 
 <em>Temporal backend</em> — same pipeline with durable workflow, Temporal UI link:
 
-<video src="https://huggingface.co/buckets/ree2raz/demo_videos/resolve/temporal_demo.mp4" controls="controls" style="max-width:100%;"></video>
+https://github.com/user-attachments/assets/1b84cf48-0f18-40b5-b724-1e36d213130c
 
 </details>
 
