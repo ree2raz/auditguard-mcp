@@ -10,58 +10,73 @@ license: mit
 
 # auditguard-mcp
 
-A production-grade, compliance-aware Model Context Protocol (MCP) server that wraps LLM tool use with four primitives: PII safety, role-based access control (RBAC), configurable policy enforcement, and structured audit logging.
+A reference implementation of a compliance-aware AI tool gateway. When an LLM calls a tool (e.g., `sql_query`), that call passes through a 7-stage audit pipeline before execution — and the result passes through it again before returning. Every stage is pluggable, every decision is logged, and no raw PII leaves the system.
 
-Built on OpenAI's newly released Privacy Filter (1.5B params, April 2026), running locally on CPU — no data leaves your infrastructure.
+Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on CPU. This is not a library you install — it's a complete system demonstrating how to build production-grade AI safety infrastructure for regulated industries.
 
-This project serves as a reference implementation for agentic systems in highly regulated industries.
+**Live demo:** [![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Space-blue)](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
 
-**Live demo:** 
+## Why this exists
 
-[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Space-blue)](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
+This is a portfolio artifact — a self-contained system that demonstrates how I think about architecture, security, and infrastructure for AI systems handling sensitive data. Every design decision is intentional and documented. The code is the documentation.
 
-## Try it in 60 seconds
+## What it demonstrates
 
-Prerequisites: Python 3.11+, `uv`
+### Architecture — Ports and Adapters
 
-```bash
-# Set your OpenAI API key for the demo's LangGraph agent
-export OPENAI_API_KEY="sk-..."
+The pipeline uses a ports-and-adapters (hexagonal) pattern. Stage logic lives in `pipeline/stages.py` as pure functions — no IO, no framework dependencies, easy to test. Each orchestration backend (`async_runner.py`, `temporal_runner.py`) is a thin adapter that calls those functions in sequence. Adding a third backend (e.g., AWS Step Functions) is ~100 lines of adapter code.
 
-git clone https://github.com/ree2raz/auditguard-mcp.git
-cd auditguard-mcp
-make install
-make seed
-MOCK_PII=1 make demo
-```
+The design is **fail-closed**: unparseable SQL always triggers `RBACDenied`, missing policy categories default to `ALLOW` explicitly, and audit records never contain raw PII.
 
-## Why a 1.5B specialty model, not a regex
+See [`docs/architecture.md`](docs/architecture.md) for the full design rationale.
 
-Most PII detection in production pipelines is regex-based. Regex catches SSNs and email addresses but misses the entire class of contextual PII: a sentence like "the Henderson trust's primary contact" contains no syntactic PII pattern, but a token classifier trained on privacy data identifies "Henderson" as a `private_person` span with high confidence.
+### PII Detection — Local 1.5B Model
 
-OpenAI released Privacy Filter on April 22, 2026. It's a 1.5B-parameter bidirectional token classifier supporting 8 PII categories. We built robust BIOES span decoding to map token predictions back to character offsets in the original text — the unglamorous part most integrations skip. The model runs locally on CPU. No data is sent to OpenAI APIs. This matches the deployment requirement of every regulated buyer: PII detection that works without trusting a third-party vendor with the data being detected.
+Most PII detection in production is regex. Regex catches SSNs and emails but misses contextual PII: "the Henderson trust's primary contact" has no syntactic pattern, but a token classifier identifies "Henderson" as a `private_person` span.
 
-## What Privacy Filter gets wrong
+This project integrates OpenAI's Privacy Filter — a 1.5B-parameter bidirectional token classifier supporting 8 PII categories. It runs locally on CPU, no data sent to any API. We built robust BIOES span decoding (`privacy.py`) to map token predictions back to exact character offsets — the unglamorous part most integrations skip.
 
-Because Privacy Filter was trained to aggressively protect personal data, it occasionally over-redacts public entities. For example, if a query returns a transaction counterparty named "Bennett Group", the model may tag it as three separate `private_person` spans.
+The model occasionally over-redacts public entities and flags numeric financial values (e.g., `496959.67`) as phone numbers. We handle this with a post-detection numeric guard in `policy.py` rather than trying to force the model to behave differently — detection is a primitive, not a pipeline.
 
-We also observe phone number false positives on numeric financial values. A balance like `496959.67` is flagged as `private_phone` because the digit sequence resembles a phone number pattern. The live demo ships a post-detection numeric guard that checks whether a phone detection falls on a purely numeric value inside a JSON number context — suppressing the redaction when the span is unlikely to be a real phone number. This guard is documented in `policy.py` under `_is_numeric_json_value()`.
+### Security — RBAC, Policy Engine, Audit Trails
 
-We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
+**RBAC** uses `sqlglot` to parse SQL into an AST, extracting tables and columns for access validation. Handles subqueries, JOINs, `SELECT *`, and table-prefixed columns. Column filtering uses union logic across JOINs, not intersection.
 
-## 1. What this is
+**The policy engine** supports six actions — `ALLOW`, `REDACT`, `HASH`, `VAULT`, `REVIEW`, `BLOCK` — with per-category, per-direction, per-role mappings. The `HASH` action replaces PII with `[category:sha256-first-8]`, preserving identity consistency so analysts can `GROUP BY` pseudonymized data without seeing real names.
 
-When an LLM (the client) calls a tool (e.g., `sql_query`), that call passes through a strict compliance pipeline before execution, and the result passes through the pipeline again before returning to the LLM.
+Two bundled policies demonstrate opposite compliance philosophies:
+- `permissive_analyst`: Hashes names/emails so analysts can correlate records across tables
+- `strict_financial`: Replaces all PII with generic `[category]` tags, preventing even statistical correlation
 
-1. **RBAC Gate**: Fails fast if the user's role lacks access to the tool or specific data fields.
-2. **Inbound PII Scan**: Detects sensitive data in the query using OpenAI's 1.5B parameter Privacy Filter.
-3. **Inbound Policy**: Applies role-specific rules (Allow, Redact, Hash, Vault, Review, Block).
-4. **Tool Execution**: Executes the bounded tool (with timeouts).
-5. **Outbound PII Scan**: Scans the canonical JSON output.
-6. **Outbound Policy**: Applies redaction/hashing rules to the results.
-7. **Audit Logging**: Writes a structured JSONL record of the entire trace.
+**Audit records** never store raw PII. Original queries and outputs are SHA-256 hashed. Detection text is replaced with `[category]` placeholders. One JSONL record per request, containing the full decision trace.
 
-## 2. Architecture
+### Infrastructure — Temporal, Docker, Async
+
+Two orchestration backends for the same 7-stage pipeline:
+
+| | Async (default) | Temporal |
+|---|---|---|
+| Latency overhead | None | ~50-100ms per stage |
+| Durability | Lost on crash | Resumes from last completed stage |
+| Human-in-the-loop | No | 24-hour signal timeout |
+| Retry per stage | No | Independent policies (RBAC: 3 attempts, Audit: 20) |
+| Operational cost | Zero | Temporal cluster + worker process |
+
+The Temporal workflow (`temporal_runner.py`) handles `ActivityError` unwrapping for RBAC denial, heartbeating for long model inference, and human review signals. Temporal tests use an in-memory server — no Docker needed for CI.
+
+### Quality — Tests, Eval, Benchmarks
+
+- **108 tests** across unit, integration, and pipeline stages (`tests/`)
+- **Golden-set eval harness** with 15 test cases measuring RBAC accuracy, PII detection accuracy, and audit completeness (`eval/`)
+- **Latency benchmarks** reporting p50/p90/p95/p99 for the 1.5B model on CPU (`benchmarks/`)
+
+### Full-Stack — Web Demo, Agent, Synthetic Data
+
+- **Interactive web demo** (`web/index.html`) — single-page app with real-time pipeline visualization, MCP Streamable HTTP client, and animated 7-step status indicators. Shows backend type (async/temporal) and links to Temporal UI for workflow inspection.
+- **LangGraph ReAct agent** (`examples/agent/`) — 3-node agent consuming the MCP server via stdio transport
+- **Synthetic financial dataset** (`scripts/seed_data.py`) — realistic data with deliberate PII edge cases (aliases, compound identifiers, one-hop references)
+
+## How it works
 
 Every tool call flows through a 7-step pipeline. Cheapest checks first, most expensive last.
 
@@ -93,160 +108,43 @@ Every tool call flows through a 7-step pipeline. Cheapest checks first, most exp
     LLM Response
 ```
 
-The server uses `FastMCP` with `stdio` transport. The core pipeline is in `auditguard_mcp/server.py:process_request()`.
-
-## 3. The Privacy Filter
-
-We use `openai/privacy-filter` (model card: April 22, 2026), a 1.5B parameter bidirectional token classifier that supports 8 PII categories (e.g., `private_person`, `account_number`, `secret`). 
-
-- It runs **locally on CPU** by default. No data is sent to OpenAI APIs.
-- We implemented robust BIOES span decoding to accurately map token predictions back to character offsets in original text.
-- For fast local testing, setting `MOCK_PII=1` bypasses model and uses a regex stub.
-  - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See benchmarks in `benchmarks/` for latency comparisons.*
-
-### Runtime Model Loading
-
-At runtime, the server checks the `PRIVACY_FILTER_LOCAL_PATH` environment variable:
-
-1. **If set and directory exists**: Loads model from local disk (no network call)
-2. **Otherwise**: Downloads model from Hugging Face Hub (cached to `HF_HOME` or `TRANSFORMERS_CACHE`)
-
-This enables air-gapped deployments or faster startups with pre-downloaded models.
-
-**Docker usage with local model:**
-```bash
-# Mount a local model directory
-docker run -p 7860:7860 \
-  -v /path/to/privacy-filter:/app/model \
-  -e PRIVACY_FILTER_LOCAL_PATH=/app/model \
-  auditguard-mcp:local
-```
-
-**Local development:**
-```bash
-# Point to a downloaded model
-export PRIVACY_FILTER_LOCAL_PATH=/path/to/privacy-filter
-uv run uvicorn web_app:app --port 7860
-```
-
-Startup logs indicate the source: `source=local` or `source=huggingface`.
-
-For known limitations, see [What Privacy Filter gets wrong](#what-privacy-filter-gets-wrong) above.
-
-## 4. RBAC and Policy Engine
-
-Policies are defined as strict Pydantic models, not loose YAML files. This ensures type safety and IDE autocomplete.
-
-There are six policy actions:
-- `ALLOW`: Pass through unchanged.
-- `REDACT`: Replace with `[category]`.
-- `HASH`: Replace with `[category:sha256-first-8]`. Preserves identity consistency.
-- `VAULT`: Store raw text in `vault.jsonl` and replace with a UUID reference.
-- `REVIEW`: Leave intact but flag for human review (writes to `review_queue.jsonl`).
-- `BLOCK`: Halt the request immediately and raise a `PolicyViolation`.
-
-**Policy Philosophies:**
-The repo includes two bundled policies that demonstrate different compliance philosophies:
-- `permissive_analyst`: Prioritizes data usability. Replaces names and emails with a `HASH` so analysts can still correlate records (e.g., `GROUP BY`) belonging to the same entity across tables without knowing the entity's true identity.
-- `strict_financial`: Prioritizes absolute privacy. Replaces names and emails with a generic `REDACT` (e.g., `[private_person]`), preventing even statistical correlation.
-
-> **What's happening here?** `permissive_analyst_v1` keeps redacted text **inline** as `[private_person:sha256-first-8]`. An analyst can still `GROUP BY` that hash to correlate records belonging to the same person — without ever seeing the person's name. `strict_financial_v1` replaces all PII with a generic `[private_person]` tag, making even statistical correlation impossible. Same detection pipeline, opposite compliance philosophies. The policy is a config object, not a code change.
-
-## 5. Audit Trail
-
-The audit log (`audit.jsonl`) is the ultimate source of truth. A single request produces a single JSONL record containing:
-- The actor (role, user_id, session_id)
-- SHA-256 hashes of the raw input and raw output
-- Inbound and outbound detections (with raw text stripped)
-- The exact policy config version and model version used
-- Latency and terminal status
-
-## 6. The Synthetic Dataset
-
-The `scripts/seed_data.py` script generates a realistic SQLite database with customers, accounts, transactions, and advisors. Crucially, the transaction descriptions include deliberate edge cases for the PII scanner, such as compound identifiers ("account ending in 4821") and aliases.
-
-## 7. Evaluation Harness
-
-Run `make eval` to execute the evaluation harness against a golden set of 15 test cases. It measures:
-- RBAC accuracy (did it correctly allow/deny?)
-- Status accuracy (did the request end in the expected state?)
-- Inbound PII detection (were the expected categories caught?)
-- Audit completeness (are all required fields present?)
-
-## 8. Included Tools
-
-- `sql_query`: Read-only SQLite execution with RBAC-enforced column filtering.
-- `customer_api`: A separate FastAPI process simulating a REST backend, demonstrating how the pipeline handles internal service boundaries.
-
-## 9. Orchestration Backends
-
-auditguard-mcp ships with two orchestration backends. Both run the same 7-stage audit pipeline; they differ in durability and operational requirements.
-
-### Async backend (default)
-
-Standard Python asyncio orchestration. Single-process. Fast.
-
-```python
-config = AuditConfig(backend="async")
-```
-
-**Use when:** Single-instance deployment, no human-in-the-loop, millisecond-latency requirements, no need for cross-process durability.
-
-**Tradeoffs:** If the worker dies mid-pipeline, the request is lost. Audit log entry may be incomplete. Suitable for high-throughput, stateless workloads.
-
-### Temporal backend
-
-Durable workflow orchestration via [Temporal](https://temporal.io/). Each pipeline stage is a Temporal activity with independent retry policies and timeouts. Workflow state survives worker crashes; pipelines resume from the last completed stage.
-
-```python
-config = AuditConfig(
-    backend="temporal",
-    temporal_address="localhost:7233",
-)
-```
-
-**Use when:**
-- Compliance requires audit log durability across failures
-- Pipelines include human-in-the-loop steps (review, approval) that may take minutes to days
-- Activities have heterogeneous failure modes requiring different retry strategies (network flakiness on PII scan vs. permanent permission denial on RBAC)
-- You need full event history for debugging
-
-**Tradeoffs:**
-- Adds ~50-100ms latency overhead per stage (serialization + scheduling)
-- Requires running a Temporal cluster (Docker Compose included for dev)
-- Operational complexity: workers must be deployed and monitored
-
-### Quickstart: Temporal backend locally
+## Running it
 
 ```bash
-# 1. Install with Temporal extras
-pip install -e ".[temporal]"
+# Prerequisites: Python 3.11+, uv
 
-# 2. Start Temporal cluster
-docker compose -f docker/docker-compose.temporal.yml up -d
-
-# 3. Start the worker (in a separate terminal)
-python -m auditguard_mcp.pipeline.temporal_worker
-
-# 4. Run an example
-python examples/run_temporal_backend.py
-
-# 5. View workflow execution at http://localhost:8080
+git clone https://github.com/ree2raz/auditguard-mcp.git
+cd auditguard-mcp
+make install
+make seed
+MOCK_PII=1 make demo
+# → http://localhost:7860
 ```
 
-### Architecture decision
+For Temporal backend:
+```bash
+docker compose -f docker/docker-compose.temporal.yml up -d   # Temporal cluster
+AUDITGUARD_BACKEND=temporal python -m auditguard_mcp.pipeline.temporal_worker  # Worker
+AUDITGUARD_BACKEND=temporal uv run uvicorn web_app:app --port 7860             # Server
+# → http://localhost:8080 for Temporal UI
+```
 
-The backend split follows a ports-and-adapters pattern. Stage logic lives in `pipeline/stages.py` as pure functions. Each backend (`async_runner.py`, `temporal_runner.py`) is a thin orchestration adapter. This means:
+## Tech stack
 
-- Stage logic is tested independently of orchestration
-- Adding a third backend (e.g., AWS Step Functions, Airflow) requires implementing only the adapter
-- Behavior is identical across backends; only durability differs
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.14 |
+| MCP Server | FastMCP (stdio + Streamable HTTP) |
+| PII Detection | OpenAI Privacy Filter 1.5B (local CPU) |
+| SQL Parsing | sqlglot |
+| Orchestration | asyncio / Temporal |
+| Web Framework | FastAPI + Uvicorn |
+| Database | SQLite (synthetic) |
+| Container | Docker (multi-layer, CPU-only ML deps) |
 
-See [docs/architecture.md](docs/architecture.md) for the full design.
+## Extending this
 
-## 10. Extending this
-
-To take this from a reference implementation to production:
-1. **Async Review Queue**: Currently, the `REVIEW` action is synchronous (the request completes but is flagged). In production, `REVIEW` should hold the request, return a "pending" status to the LLM, and wait for an out-of-band human approval webhook.
-2. **KMS Vaulting**: Replace the local `vault.jsonl` writer with a call to AWS KMS or HashiCorp Vault.
-3. **Client-side TLS**: The `stdio` transport assumes a trusted local client. If moving to SSE transport, add mTLS client certificate validation to strictly identify the actor.
+To take this from reference to production:
+1. **Async Review Queue**: The `REVIEW` action is currently synchronous. In production, hold the request, return "pending", and wait for an out-of-band human approval webhook.
+2. **KMS Vaulting**: Replace the local `vault.jsonl` writer with AWS KMS or HashiCorp Vault.
+3. **Client-side TLS**: The `stdio` transport assumes a trusted local client. For SSE transport, add mTLS client certificate validation.
