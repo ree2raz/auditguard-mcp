@@ -33,7 +33,7 @@ models/
 .DS_Store
 Thumbs.db
 
-# Video files (hosted in GitHub releases)
+# Video files
 *.mkv
 *.mp4
 
