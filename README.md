@@ -14,7 +14,7 @@ A reference implementation of a compliance-aware AI tool gateway. When an LLM ca
 
 Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on CPU. This is not a library you install — it's a complete system demonstrating how to build production-grade AI safety infrastructure for regulated industries.
 
-**Live demo:** [![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Space-blue)](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
+**Live demo:** [![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://auditguard.rituraj.info)
 
 ## Why this exists
 
