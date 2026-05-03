@@ -18,7 +18,7 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 **Async backend**: analyst query with PII hashing, RBAC denial for intern, audit log.
 
-https://github.com/user-attachments/assets/1b84cf48-0f18-40b5-b724-1e36d213130c
+https://github.com/user-attachments/assets/527df1f6-f4bc-447e-9f44-4c7cc53c01e3
 
 **Temporal backend**: same pipeline with durable workflow, Temporal UI link.
 
