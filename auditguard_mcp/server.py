@@ -63,6 +63,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _policy_mode_for_role(role: str) -> PolicyMode:
+    return PolicyMode.STRICT if role == "compliance_officer" else PolicyMode.PERMISSIVE
+
 # ---------------------------------------------------------------------------
 # MCP Server
 # ---------------------------------------------------------------------------
@@ -388,7 +392,7 @@ async def sql_query(
         requester=user_id,
     )
     context = AuditContext(
-        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+        policy_mode=_policy_mode_for_role(role),
     )
     result, _ = await _run_pipeline_v2(request, context)
     return result
@@ -421,7 +425,7 @@ async def customer_lookup(
         requester=user_id,
     )
     context = AuditContext(
-        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+        policy_mode=_policy_mode_for_role(role),
     )
     result, _ = await _run_pipeline_v2(request, context)
     return result
@@ -458,7 +462,7 @@ async def customer_search(
         requester=user_id,
     )
     context = AuditContext(
-        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+        policy_mode=_policy_mode_for_role(role),
     )
     result, _ = await _run_pipeline_v2(request, context)
     return result
@@ -617,7 +621,7 @@ async def demo_query(
         requester=user_id,
     )
     context = AuditContext(
-        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+        policy_mode=_policy_mode_for_role(role),
     )
 
     result, backend_meta = await _run_pipeline_v2(request, context)

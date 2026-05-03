@@ -9,7 +9,7 @@ import asyncio
 import json
 import time
 
-from auditguard_mcp.models import RBACDenied, RequestStatus
+from auditguard_mcp.models import PIIDetection, RBACDenied, RequestStatus
 
 from .stages import (
     apply_inbound_policy,
@@ -58,7 +58,7 @@ async def run_audit_pipeline_async(
         # Stage 2: Inbound PII scan (CPU-bound -- run in thread)
         pii_inbound = await asyncio.to_thread(scan_inbound_pii, request, context)
         inbound_detections = [
-            __import__("auditguard_mcp.models", fromlist=["PIIDetection"]).PIIDetection.model_validate(d)
+            PIIDetection.model_validate(d)
             for d in pii_inbound.detections
         ]
 
@@ -96,7 +96,7 @@ async def run_audit_pipeline_async(
         # Stage 5: Outbound PII scan
         pii_outbound = await asyncio.to_thread(scan_outbound_pii, output, context)
         outbound_detections = [
-            __import__("auditguard_mcp.models", fromlist=["PIIDetection"]).PIIDetection.model_validate(d)
+            PIIDetection.model_validate(d)
             for d in pii_outbound.detections
         ]
 
