@@ -166,16 +166,6 @@ AUDITGUARD_BACKEND=temporal uv run uvicorn web_app:app --port 7860             #
 | Database | SQLite (synthetic) |
 | Container | Docker (multi-layer, CPU-only ML deps) |
 
-## The verifiability stack
-
-auditguard-mcp is one piece of a three-repo compliance verification stack. The other two solve adjacent problems.
-
-[rubric-grader-eval](https://github.com/ree2raz/rubric-grader-eval) handles deterministic evaluation. It compiles unstructured rubrics into machine-readable schemas, then evaluates documents against them with golden-set ground truth. If auditguard-mcp answers "did the pipeline run correctly?", rubric-grader-eval answers "did the LLM produce correct verdicts?"
-
-[RegTriage](https://github.com/ree2raz/RegTriage-OpenEnv) handles agentic auditing. It is an RL environment that trains agents to audit contact center transcripts under a compute budget, forcing triage strategy over brute-force. If rubric-grader-eval measures accuracy, RegTriage measures whether an agent can prioritize high-risk sections under resource constraints.
-
-Together: auditguard-mcp proves the tool call was compliant. rubric-grader-eval proves the evaluation was accurate. RegTriage proves the agent can scale. Scrutiny proves the pattern works as a vertical product. Four repos. One problem class. Verifiability from tool call to final report.
-
 ## License
 
 [Apache License 2.0](LICENSE)
