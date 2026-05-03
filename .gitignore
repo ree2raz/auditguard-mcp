@@ -33,8 +33,9 @@ models/
 .DS_Store
 Thumbs.db
 
-# Video files
+# Video files (hosted in GitHub releases)
 *.mkv
+*.mp4
 
 # uv
 uv.lock

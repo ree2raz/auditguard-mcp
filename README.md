@@ -117,11 +117,11 @@ RBAC denies without touching the PII model. The PII model runs before the tool, 
 
 **Async backend** — names hashed, SSN/account_number columns restricted, audit log inline:
 
-https://github.com/user-attachments/assets/async_demo.mp4
+https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/async_demo.mp4
 
 **Temporal backend** — same pipeline with durable workflow execution, viewable in Temporal UI:
 
-https://github.com/user-attachments/assets/temporal_demo.mp4
+https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/temporal_demo.mp4
 
 ## What this is not
 
