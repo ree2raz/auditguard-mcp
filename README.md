@@ -16,19 +16,13 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://auditguard.rituraj.info)
 
-<details>
-<summary><strong>Watch the demo</strong></summary>
-<br>
-
-<em>Async backend</em> — analyst query with PII hashing, RBAC denial for intern, audit log:
+**Async backend** — analyst query with PII hashing, RBAC denial for intern, audit log:
 
 https://github.com/user-attachments/assets/2d88b1e9-5256-4d0f-bd02-1987efe8fc97
 
-<em>Temporal backend</em> — same pipeline with durable workflow, Temporal UI link:
+**Temporal backend** — same pipeline with durable workflow, Temporal UI link:
 
 https://github.com/user-attachments/assets/1b84cf48-0f18-40b5-b724-1e36d213130c
-
-</details>
 
 ## The problem
 
